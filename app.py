@@ -12,7 +12,7 @@ GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 genai.configure(api_key=GOOGLE_API_KEY)
 
 # Streamlit App UI
-st.title("TalentScout Hiring Assistant ")
+st.title("TalentScout Hiring Assistant 🤖")
 
 # Initialize Session State
 if "messages" not in st.session_state:
@@ -36,15 +36,11 @@ for msg in st.session_state["messages"]:
 # Function to Generate Technical Questions
 def generate_questions(tech_stack):
     try:
-        model = genai.GenerativeModel("models/gemini-pro")
+        model = genai.GenerativeModel("gemini-pro")  # Corrected model name
         response = model.generate_content(f"Generate 5 technical interview questions for {tech_stack}.")
-        
-        if hasattr(response, "candidates"):
-            return response.candidates[0].content.parts[0].text
-        return "Error generating questions."
-    
+        return response.text if hasattr(response, "text") else "Error generating questions."
     except Exception as e:
-        return f"Error: {e}"
+        return f"API Error: {e}"
 
 # Candidate Form
 if not st.session_state["form_submitted"]:
@@ -87,7 +83,7 @@ if st.session_state["form_submitted"] and not st.session_state["tech_questions"]
 
 # Display Technical Questions
 if st.session_state["tech_questions"]:
-    st.subheader(" Technical Questions:")
+    st.subheader("Technical Questions:")
     st.write(st.session_state["tech_questions"])
 
 # Chatbot User Input
@@ -102,13 +98,12 @@ if user_input:
         )
     else:
         # AI Response Handling
-        model = genai.GenerativeModel("gemini-pro")
-        ai_response = model.generate_content(f"Analyze the candidate's response: {user_input}")
-        
-        if hasattr(ai_response, "candidates"):
-            ai_reply = ai_response.candidates[0].content.parts[0].text
-        else:
-            ai_reply = "I'm unable to process your response."
+        try:
+            model = genai.GenerativeModel("gemini-pro")
+            ai_response = model.generate_content(f"Analyze the candidate's response: {user_input}")
+            ai_reply = ai_response.text if hasattr(ai_response, "text") else "I'm unable to process your response."
+        except Exception as e:
+            ai_reply = f"Error: {e}"
 
         st.session_state["messages"].append({"role": "assistant", "content": ai_reply})
         st.chat_message("assistant").write(ai_reply)
