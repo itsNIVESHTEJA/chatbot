@@ -7,7 +7,7 @@ if "HF_API_KEY" not in st.secrets:
     st.stop()
 
 HF_API_KEY = st.secrets["HF_API_KEY"]
-client = InferenceClient(model="mistralai/Mistral-7B-v0.1", token=HF_API_KEY)
+client = InferenceClient(model="tiiuae/falcon-7b-instruct", token=HF_API_KEY)
 
 # Streamlit App UI
 st.title("TalentScout Hiring Assistant 🤖")
