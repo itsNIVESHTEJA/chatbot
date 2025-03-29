@@ -10,8 +10,8 @@ HF_API_KEY = st.secrets["HF_API_KEY"]
 client = InferenceClient(model="tiiuae/falcon-7b-instruct", token=HF_API_KEY)
 
 # Streamlit App UI
-st.title("TalentScout Hiring Assistant 🤖")
-st.markdown("👋 Hello! Welcome to **TalentScout Hiring Assistant**. I will guide you through a technical screening. Let's begin!")
+st.title("TalentScout Hiring Assistant ")
+st.markdown("Hello! Welcome to **TalentScout Hiring Assistant**. I will guide you through a technical screening. Let's begin!")
 
 # Initialize Session State
 if "messages" not in st.session_state:
