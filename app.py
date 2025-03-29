@@ -14,7 +14,7 @@ else:
     genai.configure(api_key=GOOGLE_API_KEY)
 
 # Streamlit App UI
-st.title("🎯 TalentScout Hiring Assistant (Powered by Google Gemini)")
+st.title("TalentScout Hiring Assistant ")
 
 # Initialize Session State
 if "messages" not in st.session_state:
