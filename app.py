@@ -1,17 +1,15 @@
 import streamlit as st
 import google.generativeai as genai
-import os
-from dotenv import load_dotenv
 
+# Load API Key from Streamlit Secrets
+if "GOOGLE_API_KEY" not in st.secrets:
+    st.error("Google API Key is missing! Please set it in Streamlit Secrets.")
+    st.stop()
 
-# Load API Key
-load_dotenv()
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") 
+GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
 
-if not GOOGLE_API_KEY:
-    st.error("Google API Key is missing! Ensure you have a `.env` file with `GOOGLE_API_KEY`.")
-else:
-    genai.configure(api_key=GOOGLE_API_KEY)
+# Configure Gemini AI
+genai.configure(api_key=GOOGLE_API_KEY)
 
 # Streamlit App UI
 st.title("TalentScout Hiring Assistant ")
@@ -63,7 +61,7 @@ if not st.session_state["form_submitted"]:
 
         if submit_button:
             if not name or not email or not tech_stack:
-                st.warning("⚠️ Please fill in all required fields.")
+                st.warning("Please fill in all required fields.")
             else:
                 st.session_state["form_submitted"] = True
                 st.session_state["candidate_info"] = {
@@ -89,7 +87,7 @@ if st.session_state["form_submitted"] and not st.session_state["tech_questions"]
 
 # Display Technical Questions
 if st.session_state["tech_questions"]:
-    st.subheader("📝 Technical Questions:")
+    st.subheader(" Technical Questions:")
     st.write(st.session_state["tech_questions"])
 
 # Chatbot User Input
