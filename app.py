@@ -36,7 +36,7 @@ for msg in st.session_state["messages"]:
 # Function to Generate Technical Questions
 def generate_questions(tech_stack):
     try:
-        model = genai.GenerativeModel("gemini-pro")  # Corrected model name
+        model = genai.GenerativeModel("models/gemini-pro")  # Corrected model name
         response = model.generate_content(f"Generate 5 technical interview questions for {tech_stack}.")
         return response.text if hasattr(response, "text") else "Error generating questions."
     except Exception as e:
