@@ -10,28 +10,34 @@ HF_API_KEY = st.secrets["HF_API_KEY"]
 client = InferenceClient(model="tiiuae/falcon-7b-instruct", token=HF_API_KEY)
 
 # Streamlit App UI
-st.title("TalentScout Hiring Assistant")
+st.title("💼 TalentScout Hiring Assistant")
 
 # Initialize Session State
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [
-        {"role": "assistant", "content": "Hello! Let's begin your interview screening."}
-    ]
+    st.session_state["messages"] = []
 
 if "form_submitted" not in st.session_state:
     st.session_state["form_submitted"] = False
 
 if "tech_questions" not in st.session_state:
-    st.session_state["tech_questions"] = []
-
-if "answered_questions" not in st.session_state:
-    st.session_state["answered_questions"] = []
+    st.session_state["tech_questions"] = None
 
 if "candidate_info" not in st.session_state:
     st.session_state["candidate_info"] = {}
 
 if "current_question_index" not in st.session_state:
-    st.session_state["current_question_index"] = 0
+    st.session_state["current_question_index"] = 0  # Track which question is being asked
+
+if "greeted" not in st.session_state:
+    st.session_state["greeted"] = False
+
+# Greeting Message
+if not st.session_state["greeted"]:
+    st.session_state["messages"].append(
+        {"role": "assistant", "content": "👋 Hello! Welcome to TalentScout Hiring Assistant. I will guide you through a technical screening. Let's begin!"}
+    )
+    st.session_state["greeted"] = True
+    st.rerun()
 
 # Display Chat History
 for msg in st.session_state["messages"]:
@@ -40,22 +46,22 @@ for msg in st.session_state["messages"]:
 # Function to Generate Technical Questions
 def generate_questions(tech_stack):
     try:
-        prompt = f"Generate 5 technical interview questions for {tech_stack}."
+        prompt = f"Generate 5 technical interview questions for {tech_stack}. Only list the questions."
         response = client.text_generation(prompt, max_new_tokens=200)
-        return response.strip().split("\n") if response else []
+        return response.split("\n") if response else []
     except Exception as e:
         return [f"API Error: {e}"]
 
 # Candidate Form
 if not st.session_state["form_submitted"]:
     with st.form(key="candidate_form"):
-        name = st.text_input("Full Name", placeholder="Full name")
+        name = st.text_input("Full Name", placeholder="Enter your full name")
         email = st.text_input("Email Address", placeholder="email@example.com")
         phone = st.text_input("Phone Number", placeholder="+123456789")
         experience = st.selectbox("Years of Experience", ["0-1", "2-3", "4-6", "7+"])
         position = st.text_input("Desired Position", placeholder="Software Engineer")
-        location = st.text_input("Current Location", placeholder="Hyderabad")
-        tech_stack = st.text_area("Tech Stack (comma-separated)", placeholder="Python, Machine Learning, SQL")
+        location = st.text_input("Current Location", placeholder="Enter city name")
+        tech_stack = st.text_area("Tech Stack (comma-separated)", placeholder="Python, machine learning, deep learning, SQL, Power BI")
 
         submit_button = st.form_submit_button("Submit")
 
@@ -70,76 +76,73 @@ if not st.session_state["form_submitted"]:
                     "location": location, "tech_stack": tech_stack
                 }
                 st.session_state["messages"].append(
-                    {"role": "assistant", "content": f"Thank you, {name}! Now, let's assess your skills."}
+                    {"role": "assistant", "content": f"Thank you, {name}! Now, let's assess your skills. Here are your technical questions:"}
                 )
-                st.session_state["tech_questions"] = generate_questions(tech_stack)
-                st.session_state["answered_questions"] = []
-                st.session_state["current_question_index"] = 0  # Start at the first question
                 st.rerun()
 
-# Display All Questions Initially
-if st.session_state["form_submitted"] and st.session_state["tech_questions"]:
-    st.subheader("Technical Questions:")
-    for i, question in enumerate(st.session_state["tech_questions"]):
-        st.write(f"{i+1}. {question}")  # Display all questions first
+# Generate and Display Questions
+if st.session_state["form_submitted"] and not st.session_state["tech_questions"]:
+    tech_stack = st.session_state["candidate_info"]["tech_stack"]
+    tech_questions = generate_questions(tech_stack)
 
-# Ask One Question at a Time
-if (
-    st.session_state["form_submitted"]
-    and st.session_state["tech_questions"]
-    and st.session_state["current_question_index"] < len(st.session_state["tech_questions"])
-):
-    current_question = st.session_state["tech_questions"][st.session_state["current_question_index"]]
-    st.subheader("Current Question:")
-    st.write(current_question)
+    if tech_questions:
+        st.session_state["tech_questions"] = tech_questions
+        st.session_state["messages"].append(
+            {"role": "assistant", "content": "\n".join(tech_questions)}
+        )
+        st.session_state["messages"].append(
+            {"role": "assistant", "content": f"Let's start! Answer this question: {tech_questions[0]}"}
+        )
+        st.rerun()
 
-# Chatbot User Input Handling
-user_input = st.chat_input("Reply here...")
+# Asking Questions One by One
+if st.session_state["tech_questions"]:
+    index = st.session_state["current_question_index"]
+
+    if index < len(st.session_state["tech_questions"]):
+        current_question = st.session_state["tech_questions"][index]
+        st.subheader(f"Question {index+1}: {current_question}")
+
+# Chatbot User Input
+user_input = st.chat_input("Your answer...")
+
 if user_input:
+    # Save user response
     st.session_state["messages"].append({"role": "user", "content": user_input})
     st.chat_message("user").write(user_input)
 
-    # Handle exit
-    if user_input.lower() in ["exit", "quit", "bye"]:
+    # Check for exit keywords
+    exit_keywords = ["exit", "quit", "bye", "end", "stop"]
+    if any(keyword in user_input.lower() for keyword in exit_keywords):
         st.session_state["messages"].append(
-            {"role": "assistant", "content": "Thank you for your time! We will review your responses."}
+            {"role": "assistant", "content": "Thank you for your time! We will review your responses. Have a great day! 😊"}
         )
         st.rerun()
 
-    # Answer personal queries
-    if "what is my name" in user_input.lower():
-        name = st.session_state["candidate_info"].get("name", "I don't have your name on record.")
-        st.session_state["messages"].append({"role": "assistant", "content": f"Your name is {name}."})
-        st.chat_message("assistant").write(f"Your name is {name}.")
-        st.rerun()
-
-    if "how many questions answered" in user_input.lower():
-        answered_count = len(st.session_state["answered_questions"])
-        total_questions = len(st.session_state["tech_questions"])
-        st.session_state["messages"].append(
-            {"role": "assistant", "content": f"You have answered {answered_count} out of {total_questions} questions."}
+    # AI Evaluation of Answer
+    try:
+        ai_response = client.text_generation(
+            f"Evaluate the candidate's answer: {user_input}. Provide constructive feedback.", max_new_tokens=150
         )
-        st.chat_message("assistant").write(f"You have answered {answered_count} out of {total_questions} questions.")
-        st.rerun()
+        ai_reply = ai_response if ai_response else "I'm unable to process your response."
+    except Exception as e:
+        ai_reply = f"Error: {e}"
 
-    # Evaluate Answer & Move to Next Question
+    st.session_state["messages"].append({"role": "assistant", "content": ai_reply})
+    st.chat_message("assistant").write(ai_reply)
+
+    # Move to next question
+    st.session_state["current_question_index"] += 1
+
+    # If more questions remain, ask the next one
     if st.session_state["current_question_index"] < len(st.session_state["tech_questions"]):
-        try:
-            ai_response = client.text_generation(f"Evaluate this answer: {user_input}", max_new_tokens=200)
-            ai_reply = ai_response.strip() if ai_response else "I'm unable to process your response."
-        except Exception as e:
-            ai_reply = f"Error: {e}"
-
-        st.session_state["messages"].append({"role": "assistant", "content": ai_reply})
-        st.chat_message("assistant").write(ai_reply)
-
-        # Mark question as answered
-        st.session_state["answered_questions"].append(st.session_state["tech_questions"][st.session_state["current_question_index"]])
-        st.session_state["current_question_index"] += 1  # Move to next question
-
-        # If all questions are answered
-        if st.session_state["current_question_index"] >= len(st.session_state["tech_questions"]):
-            st.session_state["messages"].append({"role": "assistant", "content": "You have answered all questions. Thank you!"})
-            st.chat_message("assistant").write("You have answered all questions. Thank you!")
+        next_question = st.session_state["tech_questions"][st.session_state["current_question_index"]]
+        st.session_state["messages"].append(
+            {"role": "assistant", "content": f"Next question: {next_question}"}
+        )
+    else:
+        st.session_state["messages"].append(
+            {"role": "assistant", "content": "You have completed all questions. Thank you!"}
+        )
 
     st.rerun()
