@@ -1,8 +1,7 @@
 import streamlit as st
-import pandas as pd
 from huggingface_hub import InferenceClient
 
-# Load API Key
+# Load API Key from Streamlit Secrets
 if "HF_API_KEY" not in st.secrets:
     st.error("Hugging Face API Key is missing! Please set it in Streamlit Secrets.")
     st.stop()
@@ -16,7 +15,7 @@ st.title("TalentScout Hiring Assistant")
 # Initialize Session State
 if "messages" not in st.session_state:
     st.session_state["messages"] = [
-        {"role": "assistant", "content": " Hello! Welcome to TalentScout Hiring Assistant. Let's begin!"}
+        {"role": "assistant", "content": "👋 Hello! Welcome to TalentScout Hiring Assistant. I will guide you through a technical screening. Let's begin!"}
     ]
 
 if "form_submitted" not in st.session_state:
@@ -29,22 +28,19 @@ if "candidate_info" not in st.session_state:
     st.session_state["candidate_info"] = {}
 
 if "current_question_index" not in st.session_state:
-    st.session_state["current_question_index"] = 0  
+    st.session_state["current_question_index"] = 0  # Track question progress
 
-if "responses" not in st.session_state:
-    st.session_state["responses"] = []  # Store candidate responses
-
-if "difficulty" not in st.session_state:
-    st.session_state["difficulty"] = "Intermediate"  # Default difficulty
+if "all_questions_displayed" not in st.session_state:
+    st.session_state["all_questions_displayed"] = False  # Ensure questions show first
 
 # Display Chat History
 for msg in st.session_state["messages"]:
     st.chat_message(msg["role"]).write(msg["content"])
 
-# Generate Questions Based on Tech Stack & Difficulty
-def generate_questions(tech_stack, difficulty):
+# Function to Generate Technical Questions
+def generate_questions(tech_stack):
     try:
-        prompt = f"Generate 5 {difficulty}-level interview questions for {tech_stack}."
+        prompt = f"Generate 5 technical interview questions for {tech_stack}."
         response = client.text_generation(prompt, max_new_tokens=100)
         return response.split("\n") if response else ["Error generating questions."]
     except Exception as e:
@@ -55,9 +51,11 @@ if not st.session_state["form_submitted"]:
     with st.form(key="candidate_form"):
         name = st.text_input("Full Name", placeholder="Full Name")
         email = st.text_input("Email Address", placeholder="email@example.com")
+        phone = st.text_input("Phone Number", placeholder="+123456789")
         experience = st.selectbox("Years of Experience", ["0-1", "2-3", "4-6", "7+"])
-        tech_stack = st.text_area("Tech Stack", placeholder="Python, Machine Learning, Deep Learning, SQL")
-        difficulty = st.radio("Choose Difficulty Level", ["Beginner", "Intermediate", "Advanced"])
+        position = st.text_input("Desired Position", placeholder="Software Engineer")
+        location = st.text_input("Current Location", placeholder="Hyderabad")
+        tech_stack = st.text_area("Tech Stack (comma-separated)", placeholder="Python, Machine Learning, Deep Learning, SQL")
 
         submit_button = st.form_submit_button("Submit")
 
@@ -67,29 +65,34 @@ if not st.session_state["form_submitted"]:
             else:
                 st.session_state["form_submitted"] = True
                 st.session_state["candidate_info"] = {
-                    "name": name, "email": email, "experience": experience, "tech_stack": tech_stack, "difficulty": difficulty
+                    "name": name, "email": email, "phone": phone,
+                    "experience": experience, "position": position,
+                    "location": location, "tech_stack": tech_stack
                 }
-                st.session_state["difficulty"] = difficulty
-                st.session_state["messages"].append({"role": "assistant", "content": f"Thank you, {name}! Now, let's begin the technical assessment."})
+                st.session_state["messages"].append(
+                    {"role": "assistant", "content": f"Thank you, {name}! Now, let's assess your skills."}
+                )
                 st.rerun()
 
 # Generate Questions After Form Submission
 if st.session_state["form_submitted"] and not st.session_state["tech_questions"]:
     tech_stack = st.session_state["candidate_info"]["tech_stack"]
-    difficulty = st.session_state["difficulty"]
+    tech_questions = generate_questions(tech_stack)
     
-    tech_questions = generate_questions(tech_stack, difficulty)
     st.session_state["tech_questions"] = tech_questions
-
     st.session_state["messages"].append(
-        {"role": "assistant", "content": "Here are your questions:\n\n" + "\n".join([f"{i+1}. {q}" for i, q in enumerate(tech_questions)])}
+        {"role": "assistant", "content": "Here are your technical questions:\n\n" + "\n".join([f"{i+1}. {q}" for i, q in enumerate(tech_questions)])}
     )
+    st.session_state["all_questions_displayed"] = True  # Mark as displayed
     st.rerun()
 
 # Ask Questions One by One
-if st.session_state["current_question_index"] < len(st.session_state["tech_questions"]):
+if st.session_state["all_questions_displayed"] and st.session_state["current_question_index"] < len(st.session_state["tech_questions"]):
     next_question = st.session_state["tech_questions"][st.session_state["current_question_index"]]
-    st.session_state["messages"].append({"role": "assistant", "content": f"Question {st.session_state['current_question_index'] + 1}: {next_question}"})
+    st.session_state["messages"].append(
+        {"role": "assistant", "content": f"Question {st.session_state['current_question_index'] + 1}: {next_question}"}
+    )
+    st.session_state["all_questions_displayed"] = False  # Ensure each question is asked once
     st.rerun()
 
 # Chatbot User Input
@@ -100,14 +103,15 @@ if user_input:
 
     # Check for exit commands
     if user_input.lower() in ["exit", "quit", "bye"]:
-        st.session_state["messages"].append({"role": "assistant", "content": "Thank you for your time! We will review your responses."})
+        st.session_state["messages"].append(
+            {"role": "assistant", "content": "Thank you for your time! We will review your responses."}
+        )
         st.rerun()
 
-    # AI Response & Scoring
+    # AI Response & Moving to Next Question
     else:
         try:
-            feedback_prompt = f"Evaluate this response (score 0-10) and give feedback: {user_input}"
-            ai_response = client.text_generation(feedback_prompt, max_new_tokens=150)
+            ai_response = client.text_generation(f"Analyze the candidate's response: {user_input}", max_new_tokens=100)
             ai_reply = ai_response if ai_response else "I'm unable to process your response."
         except Exception as e:
             ai_reply = f"Error: {e}"
@@ -115,26 +119,17 @@ if user_input:
         st.session_state["messages"].append({"role": "assistant", "content": ai_reply})
         st.chat_message("assistant").write(ai_reply)
 
-        # Store Response
-        st.session_state["responses"].append({
-            "Question": st.session_state["tech_questions"][st.session_state["current_question_index"]],
-            "Response": user_input,
-            "Feedback": ai_reply
-        })
-
-        # Move to next question
+        # Move to next question if available
         st.session_state["current_question_index"] += 1
 
         if st.session_state["current_question_index"] < len(st.session_state["tech_questions"]):
             next_question = st.session_state["tech_questions"][st.session_state["current_question_index"]]
-            st.session_state["messages"].append({"role": "assistant", "content": f"Question {st.session_state['current_question_index'] + 1}: {next_question}"})
+            st.session_state["messages"].append(
+                {"role": "assistant", "content": f"Question {st.session_state['current_question_index'] + 1}: {next_question}"}
+            )
         else:
-            st.session_state["messages"].append({"role": "assistant", "content": "You have completed all questions. Thank you!"})
+            st.session_state["messages"].append(
+                {"role": "assistant", "content": "You have completed all questions. Thank you!"}
+            )
 
         st.rerun()
-
-# Download Responses as CSV
-if len(st.session_state["responses"]) > 0:
-    st.subheader("Download Responses")
-    df = pd.DataFrame(st.session_state["responses"])
-    st.download_button("Download as CSV", df.to_csv(index=False), file_name="candidate_responses.csv", mime="text/csv")
