@@ -10,7 +10,7 @@ HF_API_KEY = st.secrets["HF_API_KEY"]
 client = InferenceClient(model="tiiuae/falcon-7b-instruct", token=HF_API_KEY)
 
 # Streamlit App UI
-st.title("TalentScout Hiring Assistant 🤖")
+st.title("TalentScout Hiring Assistant ")
 
 # Initialize Session State
 if "messages" not in st.session_state:
@@ -43,13 +43,13 @@ def generate_questions(tech_stack):
 # Candidate Form
 if not st.session_state["form_submitted"]:
     with st.form(key="candidate_form"):
-        name = st.text_input("Full Name", placeholder="John Doe")
-        email = st.text_input("Email Address", placeholder="johndoe@example.com")
+        name = st.text_input("Full Name", placeholder="full name")
+        email = st.text_input("Email Address", placeholder="email@example.com")
         phone = st.text_input("Phone Number", placeholder="+123456789")
         experience = st.selectbox("Years of Experience", ["0-1", "2-3", "4-6", "7+"])
         position = st.text_input("Desired Position", placeholder="Software Engineer")
-        location = st.text_input("Current Location", placeholder="New York")
-        tech_stack = st.text_area("Tech Stack (comma-separated)", placeholder="Python, Django, React, PostgreSQL")
+        location = st.text_input("Current Location", placeholder="hyderabad")
+        tech_stack = st.text_area("Tech Stack (comma-separated)", placeholder="Python, machine learning, deep learning, SQL, power BI ")
 
         submit_button = st.form_submit_button("Submit")
 
