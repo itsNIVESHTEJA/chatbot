@@ -16,7 +16,7 @@ st.title("TalentScout Hiring Assistant")
 # Initialize Session State
 if "messages" not in st.session_state:
     st.session_state["messages"] = [
-        {"role": "assistant", "content": "👋 Hello! Welcome to TalentScout Hiring Assistant. Let's begin!"}
+        {"role": "assistant", "content": " Hello! Welcome to TalentScout Hiring Assistant. Let's begin!"}
     ]
 
 if "form_submitted" not in st.session_state:
