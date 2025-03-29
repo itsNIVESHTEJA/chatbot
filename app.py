@@ -1,15 +1,13 @@
 import streamlit as st
-import google.generativeai as genai
+from huggingface_hub import InferenceClient
 
 # Load API Key from Streamlit Secrets
-if "GOOGLE_API_KEY" not in st.secrets:
-    st.error("Google API Key is missing! Please set it in Streamlit Secrets.")
+if "HF_API_KEY" not in st.secrets:
+    st.error("Hugging Face API Key is missing! Please set it in Streamlit Secrets.")
     st.stop()
 
-GOOGLE_API_KEY = st.secrets["GOOGLE_API_KEY"]
-
-# Configure Gemini AI
-genai.configure(api_key=GOOGLE_API_KEY)
+HF_API_KEY = st.secrets["HF_API_KEY"]
+client = InferenceClient(model="mistralai/Mistral-7B-Instruct", token=HF_API_KEY)
 
 # Streamlit App UI
 st.title("TalentScout Hiring Assistant 🤖")
@@ -36,9 +34,9 @@ for msg in st.session_state["messages"]:
 # Function to Generate Technical Questions
 def generate_questions(tech_stack):
     try:
-        model = genai.GenerativeModel("models/gemini-pro")  # Corrected model name
-        response = model.generate_content(f"Generate 5 technical interview questions for {tech_stack}.")
-        return response.text if hasattr(response, "text") else "Error generating questions."
+        prompt = f"Generate 5 technical interview questions for {tech_stack}."
+        response = client.text_generation(prompt, max_new_tokens=100)
+        return response if response else "Error generating questions."
     except Exception as e:
         return f"API Error: {e}"
 
@@ -99,9 +97,8 @@ if user_input:
     else:
         # AI Response Handling
         try:
-            model = genai.GenerativeModel("gemini-pro")
-            ai_response = model.generate_content(f"Analyze the candidate's response: {user_input}")
-            ai_reply = ai_response.text if hasattr(ai_response, "text") else "I'm unable to process your response."
+            ai_response = client.text_generation(f"Analyze the candidate's response: {user_input}", max_new_tokens=100)
+            ai_reply = ai_response if ai_response else "I'm unable to process your response."
         except Exception as e:
             ai_reply = f"Error: {e}"
 
